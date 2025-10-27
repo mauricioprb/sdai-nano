@@ -1,0 +1,182 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum EquipmentType {
+  SEM
+  TEM
+}
+
+enum UserRole {
+  admin
+  tecnico
+}
+
+enum UserStatus {
+  active
+  disabled
+}
+
+enum KeyAlgorithm {
+  Ed25519
+}
+
+enum KeyHandleStatus {
+  active
+  revoked
+  expired
+}
+
+enum ManifestVerdictSource {
+  metadata
+}
+
+model Institution {
+  id        String   @id @default(uuid())
+  sigla     String   @unique
+  name      String
+  domain    String   @unique
+  labs      Lab[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Lab {
+  id             String      @id @default(uuid())
+  institution    Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  institutionId  String
+  name           String
+  description    String?
+  equipments     Equipment[]
+  users          User[]
+  records        Record[]
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@unique([institutionId, name])
+}
+
+model Equipment {
+  id            String        @id @default(uuid())
+  lab           Lab           @relation(fields: [labId], references: [id], onDelete: Cascade)
+  labId         String
+  type          EquipmentType
+  inventoryCode String?
+  specs         Json
+  records       Record[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model User {
+  id                  String        @id @default(uuid())
+  name                String
+  email               String        @unique
+  passwordHash        String
+  role                UserRole
+  status              UserStatus    @default(active)
+  lab                 Lab?          @relation(fields: [labId], references: [id])
+  labId               String?
+  keyHandles          KeyHandle[]
+  records             Record[]
+  revocationsAuthored Revocation[]  @relation("RevocationAuthor")
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  lastLoginAt         DateTime?
+}
+
+model KeyHandle {
+  id          String          @id @default(uuid())
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+  algorithm   KeyAlgorithm    @default(Ed25519)
+  keyId       String
+  status      KeyHandleStatus @default(active)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  activatedAt DateTime?
+  revokedAt   DateTime?
+  expiresAt   DateTime?
+
+  @@unique([userId, keyId])
+  @@index([status])
+}
+
+model Record {
+  id            String       @id @db.VarChar(100)
+  lab           Lab          @relation(fields: [labId], references: [id])
+  labId         String
+  user          User         @relation(fields: [userId], references: [id])
+  userId        String
+  equipment     Equipment    @relation(fields: [equipmentId], references: [id])
+  equipmentId   String
+  manifestHash  String
+  jwsSignature  String
+  logLeafHash   String
+  logIndex      Int?
+  logRoot       String
+  revoked       Boolean      @default(false)
+  revokedAt     DateTime?
+  manifest      Manifest?
+  merkleLeaf    MerkleLeaf?
+  revocation    Revocation?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@unique([logIndex])
+  @@index([labId])
+  @@index([userId])
+  @@index([equipmentId])
+}
+
+model Manifest {
+  id              String                @id @default(uuid())
+  record          Record                @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  recordId        String                @unique
+  imageSha256     String
+  metadata        Json
+  verdict         Boolean
+  provenanceScore Int
+  verdictSource   ManifestVerdictSource @default(metadata)
+  timestamp       DateTime
+  schemaVersion   String
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+}
+
+model MerkleLeaf {
+  id        String   @id @default(uuid())
+  record    Record   @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  recordId  String   @unique
+  leafHash  String
+  logIndex  Int
+  treeSize  BigInt   @db.BigInt
+  rootHash  String
+  createdAt DateTime @default(now())
+
+  @@index([logIndex])
+}
+
+model MerkleSTH {
+  id        String   @id @default(uuid())
+  treeSize  BigInt   @db.BigInt @unique
+  rootHash  String
+  signature String
+  timestamp DateTime
+  createdAt DateTime @default(now())
+}
+
+model Revocation {
+  id              String   @id @default(uuid())
+  record          Record   @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  recordId        String   @unique
+  reason          String?
+  createdByUser   User?    @relation("RevocationAuthor", fields: [createdByUserId], references: [id])
+  createdByUserId String?
+  createdAt       DateTime @default(now())
+}

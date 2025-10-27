@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "baseUrl": ".",
+    "paths": {
+      "@sdai/shared": ["packages/shared/src/index.ts"],
+      "@sdai/shared/*": ["packages/shared/src/*"],
+      "@sdai/merkle-log": ["packages/merkle-log/src/index.ts"],
+      "@sdai/merkle-log/*": ["packages/merkle-log/src/*"],
+      "@sdai/sem-metadata": ["packages/sem-metadata/src/index.ts"],
+      "@sdai/sem-metadata/*": ["packages/sem-metadata/src/*"]
+    }
+  }
+}

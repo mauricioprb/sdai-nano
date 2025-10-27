@@ -1,0 +1,3 @@
+#!/usr/bin/env sh
+# Dispara lint e format conforme configuração do lint-staged.
+npm exec --no -- lint-staged
